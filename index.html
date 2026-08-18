@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅行プランナー</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #e0e4e8;
+    --text: #1f2933;
+    --text-muted: #6b7280;
+    --accent: #2f6fed;
+    --accent-soft: #e8f0fe;
+    --danger: #d9534f;
+    --danger-soft: #fbeaea;
+    --ok: #2f9e5f;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 60px;
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0 0 12px 0;
+    font-size: 1.3rem;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  select, input, textarea, button {
+    font-family: inherit;
+    font-size: 0.9rem;
+  }
+  select, input[type=text], input[type=date], input[type=number], input[type=url], textarea {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    background: #fff;
+    color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 36px; font-family: inherit; }
+  button {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  button:hover { background: #f0f2f5; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { background: #2559c7; }
+  button.danger {
+    color: var(--danger);
+    border-color: #f0c9c7;
+  }
+  button.danger:hover { background: var(--danger-soft); }
+  button.small { padding: 3px 8px; font-size: 0.8rem; }
+  label.file-label {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    background: #fff;
+  }
+  label.file-label:hover { background: #f0f2f5; }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .trip-header {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .trip-header .field { display: flex; flex-direction: column; gap: 4px; }
+  .trip-header label { font-size: 0.75rem; color: var(--text-muted); }
+  .trip-header input { width: 100%; }
+  @media (max-width: 640px) {
+    .trip-header { grid-template-columns: 1fr 1fr; }
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabs button {
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .card-head input[data-field="label"] {
+    font-weight: 600;
+    flex: 1;
+    min-width: 140px;
+  }
+  .item-row, .expense-row, .place-row {
+    display: grid;
+    gap: 8px;
+    align-items: start;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+  }
+  .item-row { grid-template-columns: 90px 1.5fr 1fr 1.5fr auto; }
+  .expense-row { grid-template-columns: 110px 1.5fr 110px 1.5fr auto; }
+  .place-row { grid-template-columns: 1fr 1.5fr 1.5fr 120px auto; }
+  @media (max-width: 720px) {
+    .item-row, .expense-row, .place-row { grid-template-columns: 1fr; }
+  }
+  .row-actions { text-align: right; }
+  .add-row-btn { margin-top: 8px; }
+
+  .budget-summary {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .summary-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 20px;
+    min-width: 140px;
+  }
+  .summary-box .label { font-size: 0.8rem; color: var(--text-muted); }
+  .summary-box .value { font-size: 1.3rem; font-weight: 600; margin-top: 4px; }
+  .value.over { color: var(--danger); }
+  .value.under { color: var(--ok); }
+
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .status-検討中 { background: #fff4e0; color: #b9770e; }
+  .status-決定 { background: #e6f6ec; color: #1e8449; }
+  .status-見送り { background: #f0f1f2; color: #7f8c8d; }
+
+  .place-row a { color: var(--accent); word-break: break-all; }
+
+  footer.hint {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧳 旅行プランナー</h1>
+  <div class="toolbar">
+    <select id="tripSelect"></select>
+    <button data-action="add-trip">＋ 新しい旅行</button>
+    <button class="danger" data-action="delete-trip">この旅行を削除</button>
+    <button data-action="export-data">書き出し (JSON)</button>
+    <label class="file-label">読み込み<input type="file" id="importFile" accept="application/json" hidden></label>
+    <button class="danger" data-action="reset-data">全データ削除</button>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer class="hint">データはこのブラウザ内 (localStorage) にのみ保存されます。他の端末で使う場合は「書き出し」→「読み込み」でデータを移してください。</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "travelPlannerData";
+  var state = null;
+  var activeTab = "schedule";
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        state = JSON.parse(raw);
+      }
+    } catch (e) {
+      console.error("Failed to load data", e);
+    }
+    if (!state || !Array.isArray(state.trips)) {
+      state = { trips: [], currentTripId: null };
+    }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function getCurrentTrip() {
+    return state.trips.find(function (t) { return t.id === state.currentTripId; }) || null;
+  }
+
+  function newTrip(name) {
+    return {
+      id: uid(),
+      name: name || "新しい旅行",
+      destination: "",
+      startDate: "",
+      endDate: "",
+      days: [],
+      budget: { limit: "", expenses: [] },
+      places: []
+    };
+  }
+
+  function withFocusPreserved(fn) {
+    var active = document.activeElement;
+    var id = active && active.id ? active.id : null;
+    var selStart = null, selEnd = null;
+    if (active && "selectionStart" in active) {
+      try { selStart = active.selectionStart; selEnd = active.selectionEnd; } catch (e) {}
+    }
+    fn();
+    if (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.focus();
+        if (selStart != null && el.setSelectionRange) {
+          try { el.setSelectionRange(selStart, selEnd); } catch (e) {}
+        }
+      }
+    }
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function formatYen(n) {
+    var num = Number(n) || 0;
+    return "¥" + num.toLocaleString("ja-JP");
+  }
+
+  // ---------- Rendering ----------
+
+  function render() {
+    renderTripSelect();
+    var app = document.getElementById("app");
+    var trip = getCurrentTrip();
+    if (!trip) {
+      app.innerHTML =
+        '<div class="empty-state">' +
+        "<p>旅行プランがまだありません。</p>" +
+        '<button class="primary" data-action="add-trip">＋ 新しい旅行を作成</button>' +
+        "</div>";
+      return;
+    }
+
+    var html = "";
+    html += renderTripHeader(trip);
+    html += renderTabs();
+    if (activeTab === "schedule") html += renderSchedule(trip);
+    else if (activeTab === "budget") html += renderBudget(trip);
+    else if (activeTab === "places") html += renderPlaces(trip);
+
+    app.innerHTML = html;
+  }
+
+  function renderTripSelect() {
+    var sel = document.getElementById("tripSelect");
+    if (state.trips.length === 0) {
+      sel.innerHTML = "";
+      sel.disabled = true;
+      return;
+    }
+    sel.disabled = false;
+    sel.innerHTML = state.trips.map(function (t) {
+      return '<option value="' + t.id + '"' + (t.id === state.currentTripId ? " selected" : "") + ">" + esc(t.name || "無題の旅行") + "</option>";
+    }).join("");
+  }
+
+  function renderTripHeader(trip) {
+    return (
+      '<div class="trip-header">' +
+      '<div class="field"><label>旅行名</label><input type="text" id="trip-name-' + trip.id + '" data-field="name" data-trip-id="' + trip.id + '" value="' + esc(trip.name) + '"></div>' +
+      '<div class="field"><label>行き先</label><input type="text" id="trip-dest-' + trip.id + '" data-field="destination" data-trip-id="' + trip.id + '" value="' + esc(trip.destination) + '"></div>' +
+      '<div class="field"><label>開始日</label><input type="date" id="trip-start-' + trip.id + '" data-field="startDate" data-trip-id="' + trip.id + '" value="' + esc(trip.startDate) + '"></div>' +
+      '<div class="field"><label>終了日</label><input type="date" id="trip-end-' + trip.id + '" data-field="endDate" data-trip-id="' + trip.id + '" value="' + esc(trip.endDate) + '"></div>' +
+      "</div>"
+    );
+  }
+
+  function renderTabs() {
+    var tabs = [
+      ["schedule", "📅 スケジュール"],
+      ["budget", "💰 予算"],
+      ["places", "📍 候補地"]
+    ];
+    return (
+      '<div class="tabs">' +
+      tabs.map(function (t) {
+        return '<button data-tab="' + t[0] + '" class="' + (activeTab === t[0] ? "active" : "") + '">' + t[1] + "</button>";
+      }).join("") +
+      "</div>"
+    );
+  }
+
+  function renderSchedule(trip) {
+    var html = "";
+    if (trip.days.length === 0) {
+      html += '<div class="empty-state">まだ日程がありません。「＋ 日を追加」から始めましょう。</div>';
+    }
+    trip.days.forEach(function (day, idx) {
+      html += '<div class="card">';
+      html += '<div class="card-head">';
+      html += '<span style="color:var(--text-muted);font-size:0.85rem;">Day ' + (idx + 1) + "</span>";
+      html += '<input type="date" id="day-date-' + day.id + '" data-field="date" data-day-id="' + day.id + '" value="' + esc(day.date) + '">';
+      html += '<input type="text" id="day-label-' + day.id + '" data-field="label" data-day-id="' + day.id + '" placeholder="この日のテーマ (例: 京都観光)" value="' + esc(day.label) + '">';
+      html += '<button class="danger small" data-action="delete-day" data-day-id="' + day.id + '">日を削除</button>';
+      html += "</div>";
+
+      day.items.forEach(function (item) {
+        html += '<div class="item-row">';
+        html += '<input type="text" id="item-time-' + item.id + '" data-field="time" data-day-id="' + day.id + '" data-item-id="' + item.id + '" placeholder="時刻" value="' + esc(item.time) + '">';
+        html += '<input type="text" id="item-title-' + item.id + '" data-field="title" data-day-id="' + day.id + '" data-item-id="' + item.id + '" placeholder="予定" value="' + esc(item.title) + '">';
+        html += '<input type="text" id="item-place-' + item.id + '" data-field="place" data-day-id="' + day.id + '" data-item-id="' + item.id + '" placeholder="場所" value="' + esc(item.place) + '">';
+        html += '<input type="text" id="item-memo-' + item.id + '" data-field="memo" data-day-id="' + day.id + '" data-item-id="' + item.id + '" placeholder="メモ" value="' + esc(item.memo) + '">';
+        html += '<div class="row-actions"><button class="danger small" data-action="delete-item" data-day-id="' + day.id + '" data-item-id="' + item.id + '">×</button></div>';
+        html += "</div>";
+      });
+
+      html += '<button class="small add-row-btn" data-action="add-item" data-day-id="' + day.id + '">＋ 予定を追加</button>';
+      html += "</div>";
+    });
+
+    html += '<button class="primary" data-action="add-day">＋ 日を追加</button>';
+    return html;
+  }
+
+  function renderBudget(trip) {
+    var total = trip.budget.expenses.reduce(function (sum, e) { return sum + (Number(e.amount) || 0); }, 0);
+    var limit = Number(trip.budget.limit) || 0;
+    var remaining = limit - total;
+    var html = "";
+
+    html += '<div class="budget-summary">';
+    html += '<div class="summary-box"><div class="label">予算上限</div><div class="value"><input type="number" id="budget-limit" data-field="limit" style="width:110px;font-size:1.1rem;font-weight:600;border:none;padding:0;" value="' + esc(trip.budget.limit) + '" placeholder="0"></div></div>';
+    html += '<div class="summary-box"><div class="label">合計支出</div><div class="value">' + formatYen(total) + "</div></div>";
+    html += '<div class="summary-box"><div class="label">残り</div><div class="value ' + (remaining < 0 ? "over" : "under") + '">' + formatYen(remaining) + "</div></div>";
+    html += "</div>";
+
+    html += '<div class="card">';
+    if (trip.budget.expenses.length === 0) {
+      html += '<div class="empty-state" style="padding:20px;">まだ支出がありません。</div>';
+    }
+    var categories = ["交通", "宿泊", "食費", "観光", "買い物", "その他"];
+    trip.budget.expenses.forEach(function (e) {
+      html += '<div class="expense-row">';
+      html += '<select id="expense-cat-' + e.id + '" data-field="category" data-expense-id="' + e.id + '">';
+      html += categories.map(function (c) {
+        return '<option value="' + c + '"' + (e.category === c ? " selected" : "") + ">" + c + "</option>";
+      }).join("");
+      html += "</select>";
+      html += '<input type="text" id="expense-name-' + e.id + '" data-field="name" data-expense-id="' + e.id + '" placeholder="内容" value="' + esc(e.name) + '">';
+      html += '<input type="number" id="expense-amount-' + e.id + '" data-field="amount" data-expense-id="' + e.id + '" placeholder="金額" value="' + esc(e.amount) + '">';
+      html += '<input type="text" id="expense-memo-' + e.id + '" data-field="memo" data-expense-id="' + e.id + '" placeholder="メモ" value="' + esc(e.memo) + '">';
+      html += '<div class="row-actions"><button class="danger small" data-action="delete-expense" data-expense-id="' + e.id + '">×</button></div>';
+      html += "</div>";
+    });
+    html += '<button class="small add-row-btn" data-action="add-expense">＋ 支出を追加</button>';
+    html += "</div>";
+
+    return html;
+  }
+
+  function renderPlaces(trip) {
+    var html = '<div class="card">';
+    if (trip.places.length === 0) {
+      html += '<div class="empty-state" style="padding:20px;">まだ候補地がありません。</div>';
+    }
+    var statuses = ["検討中", "決定", "見送り"];
+    trip.places.forEach(function (p) {
+      html += '<div class="place-row">';
+      html += '<input type="text" id="place-name-' + p.id + '" data-field="name" data-place-id="' + p.id + '" placeholder="名前" value="' + esc(p.name) + '">';
+      html += '<input type="url" id="place-url-' + p.id + '" data-field="url" data-place-id="' + p.id + '" placeholder="https://..." value="' + esc(p.url) + '">';
+      html += '<input type="text" id="place-memo-' + p.id + '" data-field="memo" data-place-id="' + p.id + '" placeholder="メモ" value="' + esc(p.memo) + '">';
+      html += '<select id="place-status-' + p.id + '" data-field="status" data-place-id="' + p.id + '">';
+      html += statuses.map(function (s) {
+        return '<option value="' + s + '"' + (p.status === s ? " selected" : "") + ">" + s + "</option>";
+      }).join("");
+      html += "</select>";
+      html += '<div class="row-actions"><button class="danger small" data-action="delete-place" data-place-id="' + p.id + '">×</button></div>';
+      html += "</div>";
+    });
+    html += '<button class="small add-row-btn" data-action="add-place">＋ 候補地を追加</button>';
+    html += "</div>";
+    return html;
+  }
+
+  // ---------- Event handling ----------
+
+  function handleClick(e) {
+    var btn = e.target.closest("[data-action]");
+    if (btn) {
+      handleAction(btn.dataset.action, btn.dataset);
+      return;
+    }
+    var tabBtn = e.target.closest("[data-tab]");
+    if (tabBtn) {
+      activeTab = tabBtn.dataset.tab;
+      render();
+    }
+  }
+
+  function handleAction(action, ds) {
+    var trip = getCurrentTrip();
+
+    switch (action) {
+      case "add-trip": {
+        var t = newTrip("新しい旅行");
+        state.trips.push(t);
+        state.currentTripId = t.id;
+        save();
+        render();
+        break;
+      }
+      case "delete-trip": {
+        if (!trip) return;
+        if (!confirm('「' + (trip.name || "この旅行") + '」を削除します。よろしいですか？')) return;
+        state.trips = state.trips.filter(function (t) { return t.id !== trip.id; });
+        state.currentTripId = state.trips.length ? state.trips[0].id : null;
+        save();
+        render();
+        break;
+      }
+      case "export-data": {
+        var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var stamp = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = "travel-plan-backup-" + stamp + ".json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        break;
+      }
+      case "reset-data": {
+        if (!confirm("全ての旅行データを削除します。この操作は取り消せません。よろしいですか？")) return;
+        state = { trips: [], currentTripId: null };
+        save();
+        render();
+        break;
+      }
+      case "add-day": {
+        if (!trip) return;
+        trip.days.push({ id: uid(), date: "", label: "", items: [] });
+        save();
+        render();
+        break;
+      }
+      case "delete-day": {
+        if (!trip) return;
+        trip.days = trip.days.filter(function (d) { return d.id !== ds.dayId; });
+        save();
+        render();
+        break;
+      }
+      case "add-item": {
+        if (!trip) return;
+        var day = trip.days.find(function (d) { return d.id === ds.dayId; });
+        if (!day) return;
+        day.items.push({ id: uid(), time: "", title: "", place: "", memo: "" });
+        save();
+        render();
+        break;
+      }
+      case "delete-item": {
+        if (!trip) return;
+        var d2 = trip.days.find(function (d) { return d.id === ds.dayId; });
+        if (!d2) return;
+        d2.items = d2.items.filter(function (i) { return i.id !== ds.itemId; });
+        save();
+        render();
+        break;
+      }
+      case "add-expense": {
+        if (!trip) return;
+        trip.budget.expenses.push({ id: uid(), category: "交通", name: "", amount: "", memo: "" });
+        save();
+        render();
+        break;
+      }
+      case "delete-expense": {
+        if (!trip) return;
+        trip.budget.expenses = trip.budget.expenses.filter(function (e) { return e.id !== ds.expenseId; });
+        save();
+        render();
+        break;
+      }
+      case "add-place": {
+        if (!trip) return;
+        trip.places.push({ id: uid(), name: "", url: "", memo: "", status: "検討中" });
+        save();
+        render();
+        break;
+      }
+      case "delete-place": {
+        if (!trip) return;
+        trip.places = trip.places.filter(function (p) { return p.id !== ds.placeId; });
+        save();
+        render();
+        break;
+      }
+    }
+  }
+
+  function handleInput(e) {
+    var el = e.target;
+    var field = el.dataset ? el.dataset.field : null;
+    if (!field) return;
+    var trip = getCurrentTrip();
+    if (!trip) return;
+
+    withFocusPreserved(function () {
+      if (el.dataset.itemId) {
+        var day = trip.days.find(function (d) { return d.id === el.dataset.dayId; });
+        var item = day && day.items.find(function (i) { return i.id === el.dataset.itemId; });
+        if (item) item[field] = el.value;
+      } else if (el.dataset.dayId) {
+        var d = trip.days.find(function (d) { return d.id === el.dataset.dayId; });
+        if (d) d[field] = el.value;
+      } else if (el.dataset.expenseId) {
+        var exp = trip.budget.expenses.find(function (x) { return x.id === el.dataset.expenseId; });
+        if (exp) exp[field] = el.value;
+      } else if (el.dataset.placeId) {
+        var p = trip.places.find(function (x) { return x.id === el.dataset.placeId; });
+        if (p) p[field] = el.value;
+      } else if (el.id === "budget-limit") {
+        trip.budget.limit = el.value;
+      } else if (el.dataset.tripId) {
+        trip[field] = el.value;
+      }
+      save();
+      render();
+    });
+  }
+
+  function handleTripSelectChange(e) {
+    state.currentTripId = e.target.value;
+    save();
+    render();
+  }
+
+  function handleImport(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        if (!data || !Array.isArray(data.trips)) throw new Error("invalid format");
+        if (!confirm("現在のデータを読み込んだファイルの内容で置き換えます。よろしいですか？")) return;
+        state = data;
+        save();
+        render();
+      } catch (err) {
+        alert("ファイルの読み込みに失敗しました。正しいバックアップファイルか確認してください。");
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  document.addEventListener("click", handleClick);
+  document.addEventListener("input", handleInput);
+  document.addEventListener("change", function (e) {
+    if (e.target.id === "tripSelect") handleTripSelectChange(e);
+    else if (e.target.id === "importFile") handleImport(e);
+  });
+
+  load();
+  if (!state.currentTripId && state.trips.length) {
+    state.currentTripId = state.trips[0].id;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
